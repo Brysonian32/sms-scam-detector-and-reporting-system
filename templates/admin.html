@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — SMS Scam Detector</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0a1a;
+            --surface: #13102a;
+            --purple: #7c3aed;
+            --purple-light: #9d5ff5;
+            --purple-glow: rgba(124, 58, 237, 0.3);
+            --accent: #c084fc;
+            --spam-red: #ef4444;
+            --ham-green: #22c55e;
+            --yellow: #eab308;
+            --text: #f1f0ff;
+            --text-muted: #8b80b3;
+            --border: rgba(124, 58, 237, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(13, 10, 26, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 16px;
+            text-decoration: none;
+            background: linear-gradient(135deg, #fff 30%, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--text); }
+
+        .nav-links .nav-btn {
+            background: var(--purple);
+            color: #fff;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .nav-links .nav-btn:hover { background: var(--purple-light); color: #fff; }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 90px 24px 80px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+            animation: fadeDown 0.6s ease both;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(124,58,237,0.15);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 5px 14px;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .flash {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .flash.error   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: #ef4444; }
+        .flash.success { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.3);  color: #22c55e; }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 36px;
+            animation: fadeUp 0.6s ease 0.1s both;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 24px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: 'Syne', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .stat-pending  .stat-number { color: var(--yellow); }
+        .stat-approved .stat-number { color: var(--ham-green); }
+        .stat-rejected .stat-number { color: var(--spam-red); }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: -1px;
+        }
+
+        .tab-btn:hover { color: var(--text); }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--purple);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeUp 0.4s ease both; }
+
+        /* Report rows */
+        .report-row {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 14px;
+        }
+
+        .report-row-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .report-row-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .tag-device   { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.3); color: var(--accent); }
+        .tag-person   { background: rgba(234,179,8,0.1);  border-color: rgba(234,179,8,0.3);  color: #eab308; }
+        .tag-active   { background: rgba(239,68,68,0.1);  border-color: rgba(239,68,68,0.3);  color: var(--spam-red); }
+        .tag-inactive { background: rgba(107,114,128,0.1);border-color: rgba(107,114,128,0.3);color: #6b7280; }
+
+        .report-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+
+        .report-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* Admin form */
+        .admin-form {
+            border-top: 1px solid rgba(255,255,255,0.06);
+            padding-top: 14px;
+        }
+
+        .admin-form textarea {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'DM Mono', monospace;
+            color: var(--text);
+            outline: none;
+            resize: none;
+            height: 70px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+
+        .admin-form textarea:focus {
+            border-color: var(--purple);
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Syne', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover { opacity: 0.85; }
+        .btn-approve { background: var(--ham-green); color: #fff; }
+        .btn-reject  { background: var(--spam-red);  color: #fff; }
+        .btn-toggle  { background: var(--yellow);     color: #000; }
+        .btn-edit    { background: var(--purple);     color: #fff; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-inner">
+        <a href="/" class="nav-logo">SMS Scam Detector</a>
+        <div class="nav-links">
+            <a href="/community">Community</a>
+            <a href="/report">Report Scam</a>
+            <a href="/admin">Admin</a>
+            <a href="/logout" class="nav-btn">Logout ({{ session.get('username') }})</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="page-header">
+        <div class="badge">Admin Panel</div>
+        <h1>Dashboard</h1>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card stat-pending">
+            <div class="stat-number">{{ pending|length }}</div>
+            <div class="stat-label">Pending Review</div>
+        </div>
+        <div class="stat-card stat-approved">
+            <div class="stat-number">{{ approved|length }}</div>
+            <div class="stat-label">Approved</div>
+        </div>
+        <div class="stat-card stat-rejected">
+            <div class="stat-number">{{ rejected|length }}</div>
+            <div class="stat-label">Rejected</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('pending', this)">
+            🕐 Pending ({{ pending|length }})
+        </button>
+        <button class="tab-btn" onclick="switchTab('approved', this)">
+            ✅ Approved ({{ approved|length }})
+        </button>
+        <button class="tab-btn" onclick="switchTab('rejected', this)">
+            ❌ Rejected ({{ rejected|length }})
+        </button>
+    </div>
+
+    <!-- Pending -->
+    <div class="tab-content active" id="tab-pending">
+        {% if pending %}
+            {% for report in pending %}
+            <div class="report-row">
+                <div class="report-row-top">
+                    <div class="report-row-title">{{ report.title }}</div>
+                    <div class="tags">
+                        <span class="tag {{ 'tag-device' if report.delivery_method == 'device' else 'tag-person' }}">
+                            {{ 'Via Device' if report.delivery_method == 'device' else 'In Person' }}
+                        </span>
+                    </div>
+                </div>
+                <p class="report-desc">{{ report.description }}</p>
+                <div class="report-meta">
+                    <span>👤 {{ report.username }}</span>
+                    <span>🏷 {{ report.scam_type }}</span>
+                    <span>📅 {{ report.date_occurred }}</span>
+                    <span>🕒 {{ report.created_at }}</span>
+                </div>
+                <div class="admin-form">
+                    <form method="POST" action="/admin/approve/{{ report.id }}" style="display:inline;">
+                        <textarea name="admin_note" placeholder="Add an admin note (optional)..."></textarea>
+                        <div class="action-btns">
+                            <button type="submit" class="btn btn-approve">✅ Approve & Publish</button>
+                        </div>
+                    </form>
+                    <form method="POST" action="/admin/reject/{{ report.id }}" style="display:inline; margin-top: 8px;">
+                        <div class="action-btns" style="margin-top:8px;">
+                            <button type="submit" class="btn btn-reject">❌ Reject</button>
+                            <a href="/admin/edit/{{ report.id }}" class="btn btn-edit">✏️ Edit</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No pending reports. You're all caught up! ✅</div>
+        {% endif %}
+    </div>
+
+    <!-- Approved -->
+    <div class="tab-content" id="tab-approved">
+        {% if approved %}
+            {% for report in approved %}
+            <div class="report-row">
+                <div class="report-row-top">
+                    <div class="report-row-title">{{ report.title }}</div>
+                    <div class="tags">
+                        <span class="tag {{ 'tag-active' if report.is_active else 'tag-inactive' }}">
+                            {{ '🔴 Active' if report.is_active else '⚫ Inactive' }}
+                        </span>
+                    </div>
+                </div>
+                <p class="report-desc">{{ report.description }}</p>
+                <div class="report-meta">
+                    <span>👤 {{ report.username }}</span>
+                    <span>🏷 {{ report.scam_type }}</span>
+                    <span>📅 {{ report.date_occurred }}</span>
+                </div>
+                <div class="action-btns" style="margin-top:10px;">
+                    <form method="POST" action="/admin/toggle/{{ report.id }}" style="display:inline;">
+                        <button type="submit" class="btn btn-toggle">
+                            {{ '⚫ Mark Inactive' if report.is_active else '🔴 Mark Active' }}
+                        </button>
+                    </form>
+                    <a href="/admin/edit/{{ report.id }}" class="btn btn-edit">✏️ Edit</a>
+                    <a href="/scam/{{ report.id }}" class="btn" style="background:var(--surface);border:1px solid var(--border);">👁 View</a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No approved reports yet.</div>
+        {% endif %}
+    </div>
+
+    <!-- Rejected -->
+    <div class="tab-content" id="tab-rejected">
+        {% if rejected %}
+            {% for report in rejected %}
+            <div class="report-row">
+                <div class="report-row-top">
+                    <div class="report-row-title">{{ report.title }}</div>
+                </div>
+                <p class="report-desc">{{ report.description }}</p>
+                <div class="report-meta">
+                    <span>👤 {{ report.username }}</span>
+                    <span>📅 {{ report.date_occurred }}</span>
+                </div>
+                <div class="action-btns" style="margin-top:10px;">
+                    <form method="POST" action="/admin/approve/{{ report.id }}" style="display:inline;">
+                        <button type="submit" class="btn btn-approve">✅ Approve</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No rejected reports.</div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    function switchTab(tab, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+    }
+</script>
+
+</body>
+</html>

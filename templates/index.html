@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Spam Detector</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0a1a;
+            --surface: #13102a;
+            --surface2: #1a1535;
+            --purple: #7c3aed;
+            --purple-light: #9d5ff5;
+            --purple-glow: rgba(124, 58, 237, 0.3);
+            --accent: #c084fc;
+            --spam-red: #ef4444;
+            --spam-red-glow: rgba(239, 68, 68, 0.2);
+            --ham-green: #22c55e;
+            --ham-green-glow: rgba(34, 197, 94, 0.2);
+            --text: #f1f0ff;
+            --text-muted: #8b80b3;
+            --border: rgba(124, 58, 237, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Glowing orb background */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 60px 24px 80px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 52px;
+            animation: fadeDown 0.7s ease both;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(124,58,237,0.15);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 5px 14px;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 30%, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 14px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.7;
+            max-width: 460px;
+            margin: 0 auto;
+            font-family: 'DM Mono', monospace;
+        }
+
+        /* Main card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px;
+            margin-bottom: 24px;
+            animation: fadeUp 0.7s ease 0.15s both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--purple-light), transparent);
+        }
+
+        .input-label {
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            height: 130px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 14px;
+            font-family: 'DM Mono', monospace;
+            color: var(--text);
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            line-height: 1.6;
+        }
+
+        textarea::placeholder { color: var(--text-muted); }
+
+        textarea:focus {
+            border-color: var(--purple);
+            box-shadow: 0 0 0 3px var(--purple-glow);
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: var(--purple);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            background: var(--purple-light);
+            box-shadow: 0 0 24px var(--purple-glow);
+        }
+
+        button:active { transform: scale(0.98); }
+
+        button.loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        button .btn-text { transition: opacity 0.2s; }
+        button.loading .btn-text { opacity: 0; }
+
+        .spinner {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        button.loading .spinner { display: block; }
+
+        /* Result */
+        #result {
+            animation: fadeUp 0.5s ease both;
+        }
+
+        .result-card {
+            border-radius: 16px;
+            padding: 28px 32px;
+            border: 1px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-card.spam {
+            background: var(--spam-red-glow);
+            border-color: rgba(239,68,68,0.35);
+        }
+
+        .result-card.ham {
+            background: var(--ham-green-glow);
+            border-color: rgba(34,197,94,0.35);
+        }
+
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+        }
+
+        .result-card.spam::before { background: linear-gradient(90deg, transparent, var(--spam-red), transparent); }
+        .result-card.ham::before  { background: linear-gradient(90deg, transparent, var(--ham-green), transparent); }
+
+        .result-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .result-label {
+            font-family: 'Syne', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-label.spam { color: var(--spam-red); }
+        .result-label.ham  { color: var(--ham-green); }
+
+        .result-icon { font-size: 30px; }
+
+        .confidence-pill {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-family: 'DM Mono', monospace;
+        }
+
+        .spam .confidence-pill { background: rgba(239,68,68,0.15); color: var(--spam-red); border: 1px solid rgba(239,68,68,0.3); }
+        .ham  .confidence-pill { background: rgba(34,197,94,0.15);  color: var(--ham-green);  border: 1px solid rgba(34,197,94,0.3); }
+
+        .confidence-bar-wrap {
+            margin-bottom: 16px;
+        }
+
+        .confidence-bar-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .confidence-bar-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 100px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            width: 0%;
+            transition: width 1s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .spam .confidence-bar-fill  { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .ham  .confidence-bar-fill  { background: linear-gradient(90deg, #22c55e, #4ade80); }
+
+        .result-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            padding-top: 16px;
+            margin-top: 4px;
+        }
+
+        /* Info cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            animation: fadeUp 0.7s ease 0.3s both;
+        }
+
+        .info-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card::after {
+            content: '';
+            position: absolute;
+            bottom: -20px; right: -20px;
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            opacity: 0.08;
+        }
+
+        .info-card.spam-info::after { background: var(--spam-red); }
+        .info-card.ham-info::after  { background: var(--ham-green); }
+
+        .info-icon {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .info-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .info-card.spam-info .info-title { color: var(--spam-red); }
+        .info-card.ham-info  .info-title { color: var(--ham-green); }
+
+        .info-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 48px;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            animation: fadeUp 0.7s ease 0.45s both;
+        }
+
+        footer span { color: var(--accent); }
+
+        /* Animations */
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @media (max-width: 520px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .card { padding: 24px; }
+            .result-card { padding: 22px; }
+        }
+        nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(13, 10, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+}
+
+.nav-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text);
+    text-decoration: none;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.nav-links a {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-links a:hover { color: var(--text); }
+
+.nav-links .nav-btn {
+    background: var(--purple);
+    color: #fff;
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.nav-links .nav-btn:hover {
+    background: var(--purple-light);
+    color: #fff;
+}
+
+.container {
+    padding-top: 80px;
+}
+    </style>
+</head>
+<body>
+    <nav>
+    <div class="nav-inner">
+        <a href="/" class="nav-logo">SMS Scam Detector</a>
+        <div class="nav-links">
+            <a href="/community">Community</a>
+            {% if session.get('user_id') %}
+                <a href="/report">Report Scam</a>
+                {% if session.get('is_admin') %}
+                    <a href="/admin">Admin</a>
+                {% endif %}
+                <a href="/logout" class="nav-btn">Logout ({{ session.get('username') }})</a>
+            {% else %}
+                <a href="/login">Login</a>
+                <a href="/register" class="nav-btn">Register</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+<div class="container">
+
+    <header>
+        <div class="badge">AI-Powered Detection</div>
+        <h1>SMS Spam Detector</h1>
+        <p class="subtitle">Paste any SMS message below and our machine learning model will instantly classify it as spam or legitimate.</p>
+    </header>
+
+    <div class="card">
+        <label class="input-label" for="smsInput">Paste SMS Message</label>
+        <textarea id="smsInput" placeholder="e.g. Congratulations! You have won Ksh 50,000. Send your PIN to claim your prize..."></textarea>
+        <div class="char-count"><span id="charCount">0</span> characters</div>
+        <button id="analyzeBtn">
+            <span class="btn-text">Analyze Message</span>
+            <div class="spinner"></div>
+        </button>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="info-grid">
+        <div class="info-card spam-info">
+            <div class="info-icon">🚨</div>
+            <div class="info-title">Spam</div>
+            <p class="info-text">Unsolicited, fraudulent, or deceptive messages. Often request personal info, PINs, or promise fake prizes.</p>
+        </div>
+        <div class="info-card ham-info">
+            <div class="info-icon">✅</div>
+            <div class="info-title">Ham</div>
+            <p class="info-text">Legitimate messages from real people or trusted sources. Normal everyday communication.</p>
+        </div>
+    </div>
+
+    <footer>
+        Built with Naive Bayes &amp; TF-IDF &mdash; Final Year Project &mdash; <span>SMS Spam Detection System</span>
+    </footer>
+
+</div>
+
+<script>
+    const textarea = document.getElementById("smsInput");
+    const charCount = document.getElementById("charCount");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const resultDiv = document.getElementById("result");
+
+    textarea.addEventListener("input", () => {
+        charCount.textContent = textarea.value.length;
+    });
+
+    analyzeBtn.addEventListener("click", async function () {
+        const message = textarea.value.trim();
+        if (!message) {
+            alert("Please enter a message.");
+            return;
+        }
+
+        // Loading state
+        analyzeBtn.classList.add("loading");
+        resultDiv.innerHTML = "";
+
+        try {
+            const response = await fetch("/analyze_sms", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                resultDiv.innerHTML = `<div class="result-card spam"><div class="result-label spam">⚠️ Error</div><p class="result-desc">${data.error}</p></div>`;
+                return;
+            }
+
+            const isSpam = data.prediction === "Spam";
+            const confidence = (data.confidence * 100).toFixed(1);
+            const cssClass = isSpam ? "spam" : "ham";
+            const icon = isSpam ? "🚨" : "✅";
+            const desc = isSpam
+                ? "This message shows characteristics commonly associated with spam. Be cautious — do not click any links or share personal information."
+                : "This message appears to be legitimate. It does not show typical spam patterns.";
+
+            resultDiv.innerHTML = `
+                <div class="result-card ${cssClass}" style="margin-bottom:24px;">
+                    <div class="result-top">
+                        <div class="result-label ${cssClass}">
+                            <span class="result-icon">${icon}</span>
+                            ${data.prediction}
+                        </div>
+                        <div class="confidence-pill">${confidence}% confidence</div>
+                    </div>
+                    <div class="confidence-bar-wrap">
+                        <div class="confidence-bar-label">Model confidence</div>
+                        <div class="confidence-bar-track">
+                            <div class="confidence-bar-fill" id="barFill"></div>
+                        </div>
+                    </div>
+                    <p class="result-desc">${desc}</p>
+                </div>`;
+
+            // Animate bar
+            setTimeout(() => {
+                document.getElementById("barFill").style.width = confidence + "%";
+            }, 50);
+
+        } catch (err) {
+            resultDiv.innerHTML = `<div class="result-card spam" style="margin-bottom:24px;"><div class="result-label spam">⚠️ Error</div><p class="result-desc">Failed to contact server. Make sure the backend is running.</p></div>`;
+        } finally {
+            analyzeBtn.classList.remove("loading");
+        }
+    });
+</script>
+</body>
+</html>
